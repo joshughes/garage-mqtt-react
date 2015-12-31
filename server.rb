@@ -1,13 +1,24 @@
 require 'bundler'
 Bundler.require
+include Beaglebone
+require_relative 'lib/door'
 
 class HelloWorldApp < Sinatra::Base
   set :sprockets, Sprockets::Environment.new(root)
   set :assets_prefix, '/assets'
   set :digest_assets, false
+  MQTT_CLIENT = MQTT::Client.connect(ENV['MQTT_SERVER'],
+                                     port: 1883,
+                                     username: ENV['MQTT_USER'],
+                                     password: ENV['MQTT_PASSWORD'])
+
+  DOOR_CONTROL_PIN = GPIOPin.new(:P8_7,  :OUT)
+  DOOR_SENSOR_PIN  = GPIOPin.new(:P8_13, :IN)
 
   configure do
     @@clients = []
+    @@door = Door.new(DOOR_CONTROL_PIN, DOOR_SENSOR_PIN, MQTT_CLIENT, @@clients)
+
     # Setup Sprockets
     sprockets.append_path File.join(root, 'assets', 'stylesheets')
     sprockets.append_path File.join(root, 'assets', 'javascripts')
@@ -45,10 +56,17 @@ class HelloWorldApp < Sinatra::Base
     # end
   end
 
-
-  def setup_websocket ws
-    ws.on(:close) { @@clients.delete ws }
-    ws.on(:open) { @@clients << ws }
+  def setup_websocket(ws)
+    ws.on(:close) do
+      @@mutex.synchronize do
+        @@clients.delete ws
+      end
+    end
+    ws.on(:open) do
+      @@mutex.synchronize do
+        @@clients << ws
+      end
+    end
 
     ws.on :message do |msg|
       puts "THE MESSAGE IS #{msg.data}"
@@ -56,30 +74,44 @@ class HelloWorldApp < Sinatra::Base
       puts "omg data command #{data[:command]}" if data[:command]
       case data['command']
       when 'close'
-        MQTT::Client.connect('test.mosquitto.org') do |c|
-          puts "OMG CLOSE THIS"
-          c.publish('test', 'Close!!!!!')
-        end
+        @@door.closed_state(true)
       when 'open'
-        MQTT::Client.connect('test.mosquitto.org') do |c|
-          puts "OMG OPEN THIS"
-          c.publish('test', 'OPEN!!!!!')
-        end
+        @@door.closed_state(false)
       end
     end
   end
 
-  sub = Thread.new do
-    MQTT::Client.connect('mediapc2', 1883) do |c|
-      c.get('test') do |topic, message|
-        puts "#{topic}: #{message}"
-        @@mutex.synchronize do
-          @@messages << message
-        end
+  Thread.new do
+    MQTT_CLIENT.get('home/garage/set') do |topic, message|
+      puts "#{topic}: #{message}"
+      @@mutex.synchronize do
+        @@messages << message
+      end
+      puts "THE message '#{message}' does equal ON: #{message == 'ON'}"
+      puts "Message type String: #{message.instance_of? String}"
+      if message == 'ON'
+        @@door.closed_state(false)
+      elsif message == 'OFF'
+        @@door.closed_state(true)
       end
     end
   end
 
+  callback = Proc.new do |pin,edge,count|
+    puts "[#{count}] #{pin} #{edge}"
+    if edge == :LOW
+      data = { command: 'closed' }
+      @@clients.each { |c| c.send data.to_json }
+      @@door.send_state(true)
+    else
+      data = { command: 'open' }
+      @@clients.each { |c| c.send data.to_json }
+      @@door.send_state(false)
+    end
+    puts "Saw a #{edge} edge"
+  end
+
+  DOOR_SENSOR_PIN.run_on_edge(callback, :BOTH)
 
   get '/' do
     if Faye::WebSocket.websocket? request.env
@@ -102,18 +134,17 @@ class HelloWorldApp < Sinatra::Base
   get '/close' do
     data = { command: 'closed' }
     @@clients.each { |c| c.send data.to_json }
-    "closed"
+    'closed'
   end
 
   get '/open' do
     data = { command: 'open' }
     @@clients.each { |c| c.send data.to_json }
-    "open"
+    'open'
   end
 
   get '/door/state' do
-    @title = 'Upload Video'
+    @title = 'Door State'
     haml :state
   end
-
 end

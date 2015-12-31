@@ -3,7 +3,7 @@
 var HelloWorld = React.createClass({
 
   getDefaultProps: function() {
-    var _ws   = new WebSocket("ws://localhost:9292/")
+    var _ws   = new WebSocket("ws://192.168.1.107:5000/")
         _this = this
     _ws.onmessage = function (evt){
       var received_msg = JSON.parse(evt.data);
@@ -34,19 +34,17 @@ var HelloWorld = React.createClass({
       if(received_msg.command == "open"){
         console.log('OPEN');
         _this.setState({open: true});
-        _this.forceUpdate();
         console.log(JSON.stringify(received_msg));
       }
       else if(received_msg.command == "closed"){
         console.log('CLOSED');
         _this.setState({open: false});
-        _this.forceUpdate();
         console.log(JSON.stringify(received_msg));
       }
     };
     return({
       name: "doooo",
-      open: true,
+      open: false,
       message: []
     });
   },
@@ -54,9 +52,11 @@ var HelloWorld = React.createClass({
   componentDidMount: function() {
     $('#door-state').bootstrapToggle();
     var _this = this;
-    this.toggleDoor();
+    //this.toggleDoor();
     $('#door-state').change(function() {
+      if(_this.state.open != $(this).prop('checked')){
         _this.handleChange($(this).prop('checked'));
+      }
     });
   },
 
