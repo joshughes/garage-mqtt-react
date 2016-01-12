@@ -18,7 +18,7 @@ class HelloWorldApp < Sinatra::Base
 
   configure do
     @@clients = []
-    @@door = Door.new(DOOR_CONTROL_PIN, DOOR_SENSOR_PIN, MQTT_CLIENT, @@clients)
+    @@door = Door.new(DOOR_CONTROL_PIN, DOOR_SENSOR_PIN, @@clients)
 
     # Setup Sprockets
     sprockets.append_path File.join(root, 'assets', 'stylesheets')

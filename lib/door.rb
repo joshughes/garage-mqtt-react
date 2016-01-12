@@ -1,8 +1,11 @@
 class Door
-  def initialize(pin, sensor, mqtt_client, clients)
+  MQTT_CLIENT = MQTT::Client.connect(ENV['MQTT_SERVER'],
+                                     port: 1883,
+                                     username: ENV['MQTT_USER'],
+                                     password: ENV['MQTT_PASSWORD'])
+  def initialize(pin, sensor, clients)
     @pin = pin
     @sensor = sensor
-    @mqtt_client = mqtt_client
     @clients = clients
   end
 
@@ -27,7 +30,7 @@ class Door
       message = 'ON'
     end
     puts "sending state message #{message}"
-    @mqtt_client.publish('home/garage', message, true, 1)
+    MQTT_CLIENT.publish('home/garage', message, true, 1)
   end
 
   def wait_for_state(state)
