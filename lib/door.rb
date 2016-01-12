@@ -31,7 +31,7 @@ class Door
 
   def wait_for_state(state)
     Thread.new do
-      sleep(30)
+      sleep 30
       send_state(closed?) if closed? != state
     end
   end

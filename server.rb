@@ -99,7 +99,8 @@ class HelloWorldApp < Sinatra::Base
 
   callback = Proc.new do |pin,edge,count|
     puts "[#{count}] #{pin} #{edge}"
-    if edge == :HIGH
+    sleep 30
+    if @@door.closed?
       data = { command: 'closed' }
       @@clients.each { |c| c.send data.to_json }
       @@door.send_state(true)
