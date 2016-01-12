@@ -12,8 +12,9 @@ class HelloWorldApp < Sinatra::Base
                                      username: ENV['MQTT_USER'],
                                      password: ENV['MQTT_PASSWORD'])
 
-  DOOR_CONTROL_PIN = GPIOPin.new(:P8_7,  :OUT)
-  DOOR_SENSOR_PIN  = GPIOPin.new(:P8_13, :IN)
+  DOOR_CONTROL_PIN = GPIOPin.new(:P8_7, :OUT)
+  DOOR_CONTROL_PIN.digital_write(:HIGH)
+  DOOR_SENSOR_PIN = GPIOPin.new(:P8_13, :IN)
 
   configure do
     @@clients = []
