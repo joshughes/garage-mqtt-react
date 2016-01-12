@@ -26,6 +26,7 @@ class Door
       @clients.each { |c| c.send data.to_json }
       message = 'ON'
     end
+    puts "sending state message #{message}"
     @mqtt_client.publish('home/garage', message, true, 1)
   end
 

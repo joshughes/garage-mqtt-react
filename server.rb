@@ -104,12 +104,11 @@ class HelloWorldApp < Sinatra::Base
     if @@door.closed?
       data = { command: 'closed' }
       @@clients.each { |c| c.send data.to_json }
-      @@door.send_state(true)
     else
       data = { command: 'open' }
       @@clients.each { |c| c.send data.to_json }
-      @@door.send_state(false)
     end
+    @@door.send_state(@@door.closed?)
     puts "Saw a #{edge} edge"
   end
 
